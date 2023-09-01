@@ -13,6 +13,7 @@ import (
 type Message struct {
 	Id string
 	Content string 
+	Channel string `json:"channel_id"`
 }
 
 type Search struct {
@@ -40,7 +41,11 @@ func actionRequest(method string, url string) ([]byte, int) {
 }
 
 func getMessages(offset int) Search {
-	body, _ := actionRequest("GET", "https://discord.com/api/v9/channels/"+p.Channel+"/messages/search?author_id="+p.Author+"&offset="+strconv.Itoa(offset))
+	body, statusCode := actionRequest("GET", "https://discord.com/api/v9/channels/"+p.Channel+"/messages/search?author_id="+p.Author+"&offset="+strconv.Itoa(offset))
+
+	if statusCode == 404 {
+		body, statusCode = actionRequest("GET", "https://discord.com/api/v9/guilds/"+p.Channel+"/messages/search?author_id="+p.Author+"&offset="+strconv.Itoa(offset))
+	}
 
 	var s Search
 	json.Unmarshal(body, &s)
@@ -59,14 +64,12 @@ func main() {
 		s := getMessages(offset)
 		totalResults = s.TotalResults
 
-		fmt.Println(totalResults, offset)
-
 		if offset == totalResults {
 			break
 		}
 
 		for _, msg := range s.Messages {
-			_, statusCode := actionRequest("DELETE", "https://discord.com/api/v9/channels/"+p.Channel+"/messages/"+msg[0].Id)
+			_, statusCode := actionRequest("DELETE", "https://discord.com/api/v9/channels/"+msg[0].Channel+"/messages/"+msg[0].Id)
 
 			if statusCode == 403 {
 				offset++
