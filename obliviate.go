@@ -24,7 +24,7 @@ type Search struct {
 type Preset struct {
 	Token string
 	Author string
-	Channel string
+	Channel []string
 }
 
 var p Preset
@@ -40,11 +40,11 @@ func actionRequest(method string, url string) ([]byte, int) {
 	return body, resp.StatusCode
 }
 
-func getMessages(offset int) Search {
-	body, statusCode := actionRequest("GET", "https://discord.com/api/v9/channels/"+p.Channel+"/messages/search?author_id="+p.Author+"&offset="+strconv.Itoa(offset))
+func getMessages(offset int, channel string) Search {
+	body, statusCode := actionRequest("GET", "https://discord.com/api/v9/channels/"+channel+"/messages/search?author_id="+p.Author+"&offset="+strconv.Itoa(offset))
 
 	if statusCode == 404 {
-		body, statusCode = actionRequest("GET", "https://discord.com/api/v9/guilds/"+p.Channel+"/messages/search?author_id="+p.Author+"&offset="+strconv.Itoa(offset))
+		body, statusCode = actionRequest("GET", "https://discord.com/api/v9/guilds/"+channel+"/messages/search?author_id="+p.Author+"&offset="+strconv.Itoa(offset))
 	}
 
 	var s Search
@@ -57,27 +57,30 @@ func main() {
 	preset, _ := os.ReadFile("preset.json")
 	json.Unmarshal(preset, &p)
 
-	var offset int = 0
-	var totalResults int = 9999999
+	for _, channel := range p.Channel {
 
-	for totalResults != offset {
-		s := getMessages(offset)
-		totalResults = s.TotalResults
+		var offset int = 0
+		var totalResults int = 9999999
 
-		if offset == totalResults {
-			break
-		}
+		for totalResults != offset {
+			s := getMessages(offset, channel)
+			totalResults = s.TotalResults
 
-		for _, msg := range s.Messages {
-			_, statusCode := actionRequest("DELETE", "https://discord.com/api/v9/channels/"+msg[0].Channel+"/messages/"+msg[0].Id)
-
-			if statusCode == 403 {
-				offset++
+			if offset == totalResults {
+				break
 			}
 
-			time.Sleep(3 * time.Second)
+			for _, msg := range s.Messages {
+				_, statusCode := actionRequest("DELETE", "https://discord.com/api/v9/channels/"+msg[0].Channel+"/messages/"+msg[0].Id)
 
-			fmt.Println(msg[0].Id, statusCode)
+				if statusCode == 403 {
+					offset++
+				}
+
+				time.Sleep(3 * time.Second)
+
+				fmt.Println(msg[0].Id, statusCode)
+			}
 		}
 	}
 }
