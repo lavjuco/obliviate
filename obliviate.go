@@ -97,7 +97,7 @@ func main() {
 			fmt.Println("fetching messages", offset, "/", totalMessages, "from channel", channel, resp.StatusCode)
 
 			for _, message := range messages.Messages {
-				if message[0].Type == 0 {
+				if message[0].Type == 0 || message[0].Type == 19 {
 					stack[message[0].Channel] = append(
 						stack[message[0].Channel], 
 						message[0].Id)
